@@ -1,48 +1,56 @@
 "use client";
 
 import Image from "next/image";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { Spinner } from "@/components/spinner";
-import { createDocument } from "@/lib/documents";
-import { toast } from "sonner";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
+import { PlusCircle } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 const DocumentsPage = () => {
-  const { auth } = useFirebase();
-  const [user, loading] = useAuthState(auth);
   const router = useRouter();
+  const { user } = useSupabase();
 
   const onCreate = async () => {
     if (!user) return;
-    
+
     try {
-      const response = await createDocument({
+      const doc = await notesService.createDocument({
         title: "Untitled",
-        userId: user.uid
+        userId: user.id,
+        parentDocumentId: null,
+        content: null,
+        coverImage: null,
+        icon: null,
+        is_published: false,
+        is_archived: false
       });
-      router.push(`/documents/${response._id}`);
+      
+      router.push(`/documents/${doc.id}`);
     } catch (error) {
-      console.error("Error creating document:", error);
-      toast.error("Failed to create note")
+      console.error("Failed to create document:", error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col items-center justify-center space-y-4">
-     
+      <Image
+        src="/empty.png"
+        height="300"
+        width="300"
+        alt="Empty"
+        className="dark:hidden"
+      />
+      <Image
+        src="/empty-dark.png"
+        height="300"
+        width="300"
+        alt="Empty"
+        className="hidden dark:block"
+      />
       <h2 className="text-lg font-medium">
-        Welcome to {user?.displayName}&apos;s Noteapp
+        Welcome to {user?.user_metadata?.full_name || user?.email}&apos;s Noteapp
       </h2>
       <Button onClick={onCreate}>
         <PlusCircle className="h-4 w-4 mr-2" />
@@ -50,6 +58,6 @@ const DocumentsPage = () => {
       </Button>
     </div>
   );
-};
+}
 
 export default DocumentsPage;

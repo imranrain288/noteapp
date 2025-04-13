@@ -5,41 +5,35 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronsLeftRight } from "lucide-react";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { getAuth, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { useSupabase } from "@/components/providers/supabase-provider";
 
 export const UserItem = () => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user, signOut } = useSupabase();
+  const router = useRouter();
 
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+    await signOut();
+    router.push("/");
   };
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
         <div
           role="button"
           className="flex w-full items-center p-3 text-sm hover:bg-primary/5"
         >
-          <div className="flex max-w-[9.375rem] items-center gap-x-2">
+          <div className="flex max-w-[150px] items-center gap-x-2">
             <Avatar className="h-5 w-5">
-              <AvatarImage src={user?.photoURL || ""} />
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
             </Avatar>
             <span className="line-clamp-1 text-start font-medium">
-              {user?.displayName}&apos;s Noteapp
+              {user?.user_metadata?.full_name || user?.email}
             </span>
           </div>
           <ChevronsLeftRight className="ml-2 h-4 w-4 rotate-90 text-muted-foreground" />
@@ -51,29 +45,22 @@ export const UserItem = () => {
         alignOffset={11}
         forceMount
       >
-        <div className="flex flex-col space-y-4 p-2">
-          <p className="text-xs font-medium leading-none text-muted-foreground">
-            {user?.email}
-          </p>
-          <div className="flex items-center gap-x-2">
-            <div className="rounded-md bg-secondary p-1">
-              <Avatar>
-                <AvatarImage src={user?.photoURL || ""} />
-              </Avatar>
-            </div>
-            <div className="space-y-1">
-              <p className="line-clamp-1 text-sm">
-                {user?.displayName}&apos;s Noteapp
-              </p>
-            </div>
+        <div className="flex items-center justify-start gap-x-2 p-2">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm line-clamp-1">
+              {user?.user_metadata?.full_name || user?.email}
+            </p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {user?.email}
+            </p>
           </div>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          className="w-full cursor-pointer text-muted-foreground"
+        <DropdownMenuItem
           onClick={handleSignOut}
+          className="w-full cursor-pointer text-muted-foreground"
         >
-          Log Out
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

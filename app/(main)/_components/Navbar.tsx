@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
 import { MenuIcon } from "lucide-react";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { getDocument } from "@/lib/documents";
 import { Title } from "./Title";
 import { Banner } from "./Banner";
 import { Menu } from "./Menu";
@@ -17,9 +16,8 @@ interface NavbarProps {
 }
 
 export const Navbar = ({ isCollapsed, onResetWidth }: NavbarProps) => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
   const params = useParams();
+  const { user } = useSupabase();
   const [document, setDocument] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +26,7 @@ export const Navbar = ({ isCollapsed, onResetWidth }: NavbarProps) => {
       if (!user || !params.documentId) return;
       
       try {
-        const doc = await getDocument(params.documentId as string);
+        const doc = await notesService.getDocument(params.documentId as string);
         setDocument(doc);
       } catch (error) {
         console.error("Error fetching document:", error);

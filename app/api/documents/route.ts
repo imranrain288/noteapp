@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
-import clientPromise from "@/lib/mongodb";
+import { connectDB } from "@/lib/mongodb";
+import DocumentModel, { IDocument } from "@/models/document.model";
+import { Types, isValidObjectId } from 'mongoose';
 
 export async function GET(request: Request) {
   try {
@@ -16,9 +17,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
     let query: any = { userId };
     
@@ -29,15 +28,15 @@ export async function GET(request: Request) {
       query.isArchived = { $ne: true };
     }
 
-    const documents = await collection
+    const documents = await DocumentModel
       .find(query)
       .sort({ createdAt: -1 })
-      .toArray();
+      .lean<IDocument[]>();
 
     return NextResponse.json(
       documents.map(doc => ({
         ...doc,
-        _id: doc._id.toString()
+        _id: (doc._id as Types.ObjectId).toString()
       }))
     );
   } catch (error) {
@@ -60,28 +59,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const document = {
+    const document = new DocumentModel({
       ...data,
       content: "",
       isArchived: false,
-      isPublished: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      isPublished: false
+    }) as IDocument;
 
-    const result = await collection.insertOne(document);
+    await document.save();
 
-    if (!result.insertedId) {
-      throw new Error("Failed to insert document");
-    }
-
+    const doc = document.toJSON();
     return NextResponse.json({
-      ...document,
-      _id: result.insertedId.toString()
+      ...doc,
+      _id: (doc._id as Types.ObjectId).toString()
     });
   } catch (error) {
     console.error("Error creating document:", error);
@@ -97,38 +89,22 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('id');
     
-    if (!documentId || !ObjectId.isValid(documentId)) {
+    if (!documentId || !isValidObjectId(documentId)) {
       return NextResponse.json(
         { error: "Valid document ID is required" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
     
-    // First find the document to ensure it exists
-    const document = await collection.findOne({
-      _id: new ObjectId(documentId)
-    });
+    // Find and delete the document
+    const document = await DocumentModel.findByIdAndDelete(documentId).lean<IDocument>();
 
     if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
-      );
-    }
-
-    // Then delete it
-    const deleteResult = await collection.deleteOne({
-      _id: new ObjectId(documentId)
-    });
-
-    if (deleteResult.deletedCount === 0) {
-      return NextResponse.json(
-        { error: "Failed to delete document" },
-        { status: 500 }
       );
     }
 

@@ -9,6 +9,8 @@ import Navbar from "../../components/Navbar"
 import axios from "axios"
 import { toast } from "react-toastify"
 import EmptyCard from "../../components/EmptyCard/EmptyCard"
+import { CRDTProvider } from "../../components/CRDTProvider"
+import CollaborativeEditor from "../../components/CollaborativeEditor"
 
 const Home = () => {
   const { currentUser, loading, errorDispatch } = useSelector(
@@ -134,7 +136,7 @@ const Home = () => {
   }
 
   return (
-    <>
+    <CRDTProvider roomName={`noteapp-${userInfo?.id || 'default'}`}>
       <Navbar
         userInfo={userInfo}
         onSearchNote={onSearchNote}
@@ -209,7 +211,7 @@ const Home = () => {
           getAllNotes={getAllNotes}
         />
       </Modal>
-    </>
+    </CRDTProvider>
   )
 }
 

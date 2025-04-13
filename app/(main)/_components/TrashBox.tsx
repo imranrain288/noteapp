@@ -1,43 +1,40 @@
 "use client";
 
-import { ConfirmModal } from "@/components/modals/ConfirmModal";
-import { Spinner } from "@/components/spinner";
-import { Input } from "@/components/ui/input";
-import { Search, Trash, Undo } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { getTrashDocuments, restoreDocument, deleteDocument } from "@/lib/documents";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useRouter } from "next/navigation";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
+import { Spinner } from "@/components/spinner";
+import { Search, Trash, Undo } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 
 export const TrashBox = () => {
   const router = useRouter();
-  const params = useParams();
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user } = useSupabase();
+  const [search, setSearch] = useState("");
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const fetchTrash = async () => {
+    const loadDocuments = async () => {
       if (!user) return;
-      
+
       try {
-        const docs = await getTrashDocuments(user.uid);
+        const docs = await notesService.getArchivedDocuments(user.id);
         setDocuments(docs);
       } catch (error) {
-        console.error("Error fetching trash documents:", error);
+        console.error("Failed to load archived documents:", error);
+        setDocuments([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTrash();
+    loadDocuments();
   }, [user]);
 
-  const filteredDocuments = documents?.filter((document) => {
+  const filteredDocuments = documents.filter((document) => {
     return document.title.toLowerCase().includes(search.toLowerCase());
   });
 
@@ -45,51 +42,44 @@ export const TrashBox = () => {
     router.push(`/documents/${documentId}`);
   };
 
-  const onRestore = async (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    documentId: string
-  ) => {
-    event.stopPropagation();
-    
+  const onRestore = async (documentId: string) => {
     try {
-      await restoreDocument(documentId);
-      setDocuments(documents.filter(doc => doc._id !== documentId));
-      toast.success("Note restored!");
+      await notesService.updateDocument(documentId, {
+        is_archived: false
+      });
+      
+      // Remove from local state
+      setDocuments(documents.filter(doc => doc.id !== documentId));
+      
+      router.refresh();
     } catch (error) {
-      console.error("Error restoring document:", error);
-      toast.error("Failed to restore note.");
+      console.error("Failed to restore document:", error);
     }
   };
 
   const onRemove = async (documentId: string) => {
     try {
-      await deleteDocument(documentId);
-      setDocuments(documents.filter(doc => doc._id !== documentId));
-      toast.success("Note deleted!");
+      await notesService.deleteDocument(documentId);
       
-      if (params.documentId === documentId) {
-        router.push("/documents");
-      }
+      // Remove from local state
+      setDocuments(documents.filter(doc => doc.id !== documentId));
+      
+      router.refresh();
     } catch (error) {
-      console.error("Error deleting document:", error);
-      toast.error("Failed to delete note.");
+      console.error("Failed to delete document:", error);
     }
   };
 
   if (loading) {
     return (
-      <div
-        className="flex h-full items-center justify-center p-4"
-        aria-busy="true"
-        aria-label="loading"
-      >
-        <Spinner size="md" />
+      <div className="flex h-full items-center justify-center p-4">
+        <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <section className="text-sm">
+    <div className="text-sm">
       <div className="flex items-center gap-x-1 p-2">
         <Search className="h-4 w-4" />
         <Input
@@ -97,43 +87,45 @@ export const TrashBox = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="h-7 bg-secondary px-2 focus-visible:ring-transparent"
           placeholder="Filter by page title..."
-          aria-label="Filter by page title"
         />
       </div>
       <div className="mt-2 px-1 pb-1">
-        {filteredDocuments?.length === 0 && (
+        {filteredDocuments.length === 0 && (
           <p className="pb-2 text-center text-xs text-muted-foreground">
             No documents found.
           </p>
         )}
-        {filteredDocuments?.map((document) => (
-          <button
-            key={document._id}
-            onClick={() => onClick(document._id)}
+        {filteredDocuments.map((document) => (
+          <div
+            key={document.id}
+            role="button"
+            onClick={() => onClick(document.id)}
             className="flex w-full items-center justify-between rounded-sm text-sm text-primary hover:bg-primary/5"
-            aria-label="Document"
           >
             <span className="truncate pl-2">{document.title}</span>
             <div className="flex items-center">
-              <button
-                onClick={(e) => onRestore(e, document._id)}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRestore(document.id);
+                }}
+                role="button"
                 className="rounded-sm p-2 hover:bg-neutral-200 dark:hover:bg-neutral-600"
-                aria-label="Restore Document"
               >
-                <Undo className="h-4 w-4 text-muted-foreground " />
-              </button>
-              <ConfirmModal onConfirm={() => onRemove(document._id)}>
-                <button
+                <Undo className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <ConfirmModal onConfirm={() => onRemove(document.id)}>
+                <div
+                  role="button"
                   className="rounded-sm p-2 hover:bg-neutral-200 dark:hover:bg-neutral-600"
-                  aria-label="Delete Permanently"
                 >
-                  <Trash className="h-4 w-4 text-muted-foreground " />
-                </button>
+                  <Trash className="h-4 w-4 text-muted-foreground" />
+                </div>
               </ConfirmModal>
             </div>
-          </button>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 };

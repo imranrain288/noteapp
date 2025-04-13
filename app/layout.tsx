@@ -4,15 +4,16 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { FirebaseProvider } from "@/components/providers/firebase-provider";
+import { SupabaseProvider } from "@/components/providers/supabase-provider";
 import { ModalProvider } from "@/components/providers/modal-provider";
+import { EdgeStoreProvider } from "@/lib/edgestore";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "notes",
-  description:
-    "The seamless platform where creative and productive work happens.",
+  title: "Noteapp",
+  description: "The connected workspace for better, faster work",
   icons: {
     icon: [
       {
@@ -24,9 +25,9 @@ export const metadata: Metadata = {
         media: "(prefers-color-scheme: dark)",
         url: "/logo-dark.svg",
         href: "/logo-dark.svg",
-      },
-    ],
-  },
+      }
+    ]
+  }
 };
 
 export default function RootLayout({
@@ -36,20 +37,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon2.jpg" sizes="10px" />
+      </head>
       <body className={inter.className}>
-        <FirebaseProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-            storageKey="note-theme-2"
-          >
-            <Toaster position="bottom-center" />
-            <ModalProvider />
-            {children}
-          </ThemeProvider>
-        </FirebaseProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="noteapp-theme"
+        >
+          <SupabaseProvider>
+            <EdgeStoreProvider>
+              <TooltipProvider>
+                <Toaster position="bottom-center" />
+                <ModalProvider />
+                {children}
+              </TooltipProvider>
+            </EdgeStoreProvider>
+          </SupabaseProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

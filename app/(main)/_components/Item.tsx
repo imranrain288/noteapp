@@ -1,27 +1,26 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  LucideIcon,
+  Plus,
+  MoreHorizontal,
+  Trash
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
+
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import {
-  ChevronDown,
-  ChevronRight,
-  LucideIcon,
-  MoreHorizontal,
-  Plus,
-  Trash,
-} from "lucide-react";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { archiveDocument, createDocument } from "@/lib/documents";
 
 interface ItemProps {
   id?: string;
@@ -48,93 +47,82 @@ export const Item = ({
   onExpand,
   expanded,
 }: ItemProps) => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user } = useSupabase();
   const router = useRouter();
+  const ChevronIcon = expanded ? ChevronDown : ChevronRight;
 
   const onArchive = async (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     event.stopPropagation();
-    if (!id) return;
-    
+    if (!id || !user) return;
+
     try {
-      await archiveDocument(id);
-      router.push("/documents");
-      toast.success("Note moved to trash!");
+      await notesService.updateDocument(id, {
+        is_archived: true
+      });
+      
+      router.refresh();
     } catch (error) {
-      console.error("Error archiving document:", error);
-      toast.error("Failed to archive note.");
+      console.error("Failed to archive document:", error);
     }
   };
 
   const handleExpand = (
-    event: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
   ) => {
     event.stopPropagation();
     onExpand?.();
   };
 
-  const onCreate = async (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    event.stopPropagation();
-    if (!id || !user) return;
-
-    try {
-      const response = await createDocument({
-        title: "Untitled",
-        parentDocumentId: id,
-        userId: user.uid
-      });
-
-      if (!expanded) {
-        onExpand?.();
-      }
-      router.push(`/documents/${response._id}`);
-      toast.success("New note created.");
-    } catch (error) {
-      console.error("Error creating document:", error);
-      toast.error("Failed to create note.");
-    }
-  };
-
-  const ChevronIcon = expanded ? ChevronDown : ChevronRight;
-
   return (
     <div
       onClick={onClick}
       role="button"
-      style={{ paddingLeft: level ? `${level * 12 + 12}px` : "12px" }}
+      style={{
+        paddingLeft: level ? `${(level * 12) + 12}px` : "12px"
+      }}
       className={cn(
-        "group flex min-h-[1.6875rem] w-full items-center py-1 pr-3 text-sm font-medium text-muted-foreground hover:bg-primary/5",
-        active && "bg-primary/5 text-primary",
+        "group min-h-[27px] text-sm py-1 pr-3 w-full hover:bg-primary/5 flex items-center text-muted-foreground font-medium",
+        active && "bg-primary/5 text-primary"
       )}
     >
       {!!id && (
         <div
           role="button"
-          className="mr-1 h-full rounded-sm hover:bg-neutral-300 dark:hover:bg-neutral-600"
+          className="h-full rounded-sm hover:bg-neutral-300 dark:hover:bg-neutral-600 mr-1"
           onClick={handleExpand}
         >
-          <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+          <ChevronIcon
+            className="h-4 w-4 shrink-0 text-muted-foreground/50"
+          />
         </div>
       )}
       {documentIcon ? (
-        <div className="mr-2 shrink-0 text-[1.125rem]">{documentIcon}</div>
+        <div className="shrink-0 mr-2 text-[18px]">
+          {documentIcon}
+        </div>
       ) : (
-        <Icon className="mr-2 h-[1.125rem] w-[1.125rem] shrink-0 text-muted-foreground" />
+        <Icon 
+          className="shrink-0 h-[18px] w-[18px] mr-2 text-muted-foreground"
+        />
       )}
-
-      <span className="truncate">{label}</span>
+      <span className="truncate">
+        {label}
+      </span>
       {isSearch && (
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[.625rem] font-medium text-muted-foreground opacity-100 dark:bg-neutral-700">
-          <span className="text-xs">CTRL</span>K
+        <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+          <span className="text-xs">⌘</span>K
         </kbd>
       )}
       {!!id && (
         <div className="ml-auto flex items-center gap-x-2">
           <DropdownMenu>
-            <DropdownMenuTrigger onClick={(e) => e.stopPropagation()} asChild>
+            <DropdownMenuTrigger
+              onClick={(e) => e.stopPropagation()}
+              asChild
+            >
               <div
                 role="button"
-                className="ml-auto h-full rounded-sm opacity-0 hover:bg-neutral-300 group-hover:opacity-100 dark:hover:bg-neutral-600"
+                className="opacity-0 group-hover:opacity-100 h-full ml-auto rounded-sm hover:bg-neutral-300 dark:hover:bg-neutral-600"
               >
                 <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -146,19 +134,19 @@ export const Item = ({
               forceMount
             >
               <DropdownMenuItem onClick={onArchive}>
-                <Trash className="mr-2 h-4 w-4" />
+                <Trash className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <div className="p-2 text-xs text-muted-foreground">
-                Last edited by: {user?.displayName}
+              <div className="text-xs text-muted-foreground p-2">
+                Last edited by: {user?.user_metadata?.full_name || user?.email}
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
           <div
             role="button"
-            onClick={onCreate}
-            className="ml-auto h-full rounded-sm opacity-0 hover:bg-neutral-300 group-hover:opacity-100 dark:hover:bg-neutral-600"
+            onClick={(e) => e.stopPropagation()}
+            className="opacity-0 group-hover:opacity-100 h-full ml-auto rounded-sm hover:bg-neutral-300 dark:hover:bg-neutral-600"
           >
             <Plus className="h-4 w-4 text-muted-foreground" />
           </div>
@@ -171,8 +159,10 @@ export const Item = ({
 Item.Skeleton = function ItemSkeleton({ level }: { level?: number }) {
   return (
     <div
-      style={{ paddingLeft: level ? `${level * 12 + 25}px` : "12px" }}
-      className="flex gap-x-2 py-[.1875rem]"
+      style={{
+        paddingLeft: level ? `${(level * 12) + 25}px` : "12px"
+      }}
+      className="flex gap-x-2 py-[3px]"
     >
       <Skeleton className="h-4 w-4" />
       <Skeleton className="h-4 w-[30%]" />

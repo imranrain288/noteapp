@@ -1,8 +1,10 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { MdClose } from "react-icons/md"
 import TagInput from "../../components/Input/TagInput "
 import axios from "axios"
 import { toast } from "react-toastify"
+import { useCRDT } from "../../components/CRDTProvider"
+import CollaborativeEditor from "../../components/CollaborativeEditor"
 
 const AddEditNotes = ({ onClose, noteData, type, getAllNotes }) => {
   const [title, setTitle] = useState(noteData?.title || "")
@@ -110,13 +112,9 @@ const AddEditNotes = ({ onClose, noteData, type, getAllNotes }) => {
       <div className="flex flex-col gap-2 mt-4">
         <label className="input-label text-red-400 uppercase">Content</label>
 
-        <textarea
-          type="text"
-          className="text-sm text-slate-950 outline-none bg-slate-50 p-2 rounded"
-          placeholder="Content..."
-          rows={10}
-          value={content}
-          onChange={({ target }) => setContent(target.value)}
+        <CollaborativeEditor
+          initialContent={content}
+          onChange={setContent}
         />
       </div>
 

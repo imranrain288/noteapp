@@ -1,23 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-
-import { cn } from "@/lib/utils";
-import { getDocuments } from "@/lib/documents";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
 import { Item } from "./Item";
-
+import { cn } from "@/lib/utils";
 import { FileIcon } from "lucide-react";
-
-interface Document {
-  _id: string;
-  title: string;
-  icon?: string;
-  userId: string;
-  parentDocumentId?: string;
-}
 
 interface DocumentListProps {
   parentDocumentId?: string;
@@ -28,40 +17,29 @@ export const DocumentList = ({
   parentDocumentId,
   level = 0,
 }: DocumentListProps) => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
   const params = useParams();
   const router = useRouter();
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const { user } = useSupabase();
+  const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDocuments = async () => {
+    const loadDocuments = async () => {
       if (!user) return;
-      
+
       try {
-        const docs = await getDocuments({
-          userId: user.uid,
-          parentDocumentId
-        });
+        const docs = await notesService.getDocuments(user.id, parentDocumentId);
         setDocuments(docs);
       } catch (error) {
-        console.error("Error fetching documents:", error);
+        console.error("Failed to load documents:", error);
+        setDocuments([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDocuments();
+    loadDocuments();
   }, [user, parentDocumentId]);
-
-  const onExpand = (documentId: string) => {
-    setExpanded((prevExpanded) => ({
-      ...prevExpanded,
-      [documentId]: !prevExpanded[documentId],
-    }));
-  };
 
   const onRedirect = (documentId: string) => {
     router.push(`/documents/${documentId}`);
@@ -84,31 +62,27 @@ export const DocumentList = ({
   return (
     <>
       <p
-        style={{ paddingLeft: level ? `${level * 12 + 25}px` : undefined }}
+        style={{
+          paddingLeft: level ? `${level * 12 + 25}px` : undefined,
+        }}
         className={cn(
           "hidden text-sm font-medium text-muted-foreground/80",
-          expanded && "last:block",
-          level === 0 && "hidden",
+          level === 0 && "block",
         )}
       >
-        No pages inside
+        {documents.length === 0 ? "No pages inside" : "Pages"}
       </p>
-      {documents?.map((document) => (
-        <div key={document._id}>
+      {documents.map((document) => (
+        <div key={document.id}>
           <Item
-            id={document._id}
-            onClick={() => onRedirect(document._id)}
+            id={document.id}
+            onClick={() => onRedirect(document.id)}
             label={document.title}
             icon={FileIcon}
             documentIcon={document.icon}
-            active={params.documentId === document._id}
+            active={params.documentId === document.id}
             level={level}
-            onExpand={() => onExpand(document._id)}
-            expanded={expanded[document._id]}
           />
-          {expanded[document._id] && (
-            <DocumentList parentDocumentId={document._id} level={level + 1} />
-          )}
         </div>
       ))}
     </>

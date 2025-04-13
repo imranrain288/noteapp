@@ -1,32 +1,29 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
+import { useEffect } from 'react';
 
-import { Button } from "@/components/ui/button";
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
+  useEffect(() => {
+    console.error(error)
+  }, [error])
 
-const Error = () => {
   return (
-    <div className="flex h-full flex-col items-center justify-center space-y-4 dark:bg-[#1F1F1F]">
-      <Image
-        src="/error.svg"
-        height="300"
-        width="300"
-        alt="error"
-        className="dark:hidden"
-      />
-      <Image
-        src="/error-dark.svg"
-        height="300"
-        width="300"
-        alt="error"
-        className="hidden dark:block"
-      />
-      <h2 className="text-xl font-medium">Something went wrong!</h2>
-      <Button asChild>
-        <Link href="/documents">Go back</Link>
-      </Button>
+    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong!</h2>
+        <button
+          onClick={() => reset()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
     </div>
-  );
-};
-export default Error;
+  )
+}

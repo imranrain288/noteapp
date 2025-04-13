@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId, FindOneAndUpdateOptions } from "mongodb";
-import clientPromise from "@/lib/mongodb";
+import { isValidObjectId, Types } from "mongoose";
+import { connectDB } from "@/lib/mongodb";
+import DocumentModel, { IDocument } from "@/models/document.model";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { documentId: string } }
 ) {
   try {
-    if (!params.documentId || !ObjectId.isValid(params.documentId)) {
+    if (!params.documentId || !isValidObjectId(params.documentId)) {
       return NextResponse.json(
         { error: "Invalid document ID" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const document = await collection.findOne({
-      _id: new ObjectId(params.documentId)
-    });
+    const document = await DocumentModel.findById(params.documentId).lean<IDocument>();
 
     if (!document) {
       return NextResponse.json(
@@ -31,7 +28,7 @@ export async function GET(
 
     return NextResponse.json({
       ...document,
-      _id: document._id.toString()
+      _id: (document._id as Types.ObjectId).toString()
     });
   } catch (error) {
     console.error("Error fetching document:", error);
@@ -44,7 +41,7 @@ export async function PATCH(
   { params }: { params: { documentId: string } }
 ) {
   try {
-    if (!params.documentId || !ObjectId.isValid(params.documentId)) {
+    if (!params.documentId || !isValidObjectId(params.documentId)) {
       return NextResponse.json(
         { error: "Invalid document ID" },
         { status: 400 }
@@ -52,19 +49,30 @@ export async function PATCH(
     }
 
     const updates = await req.json();
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const options: FindOneAndUpdateOptions = { returnDocument: "after" };
+    // Parse content if it's a string
+    if (typeof updates.content === 'string') {
+      try {
+        JSON.parse(updates.content); // Validate JSON
+      } catch (e) {
+        return NextResponse.json(
+          { error: "Invalid content format" },
+          { status: 400 }
+        );
+      }
+    }
 
-    const result = await collection.findOneAndUpdate(
-      { _id: new ObjectId(params.documentId) },
-      { $set: updates },
-      options
-    );
+    const document = await DocumentModel.findByIdAndUpdate<IDocument>(
+      params.documentId,
+      { 
+        $set: updates,
+        $currentDate: { updatedAt: true }
+      },
+      { new: true }
+    ).lean<IDocument>();
 
-    if (!result || !result.value) {
+    if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
@@ -72,8 +80,8 @@ export async function PATCH(
     }
 
     return NextResponse.json({
-      ...result.value,
-      _id: result.value._id.toString()
+      ...document,
+      _id: (document._id as Types.ObjectId).toString()
     });
   } catch (error) {
     console.error("Error updating document:", error);
@@ -86,22 +94,18 @@ export async function DELETE(
   { params }: { params: { documentId: string } }
 ) {
   try {
-    if (!params.documentId || !ObjectId.isValid(params.documentId)) {
+    if (!params.documentId || !isValidObjectId(params.documentId)) {
       return NextResponse.json(
         { error: "Invalid document ID" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const result = await collection.findOneAndDelete({
-      _id: new ObjectId(params.documentId)
-    });
+    const document = await DocumentModel.findByIdAndDelete(params.documentId).lean<IDocument>();
 
-    if (!result || !result.value) {
+    if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
@@ -109,8 +113,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({
-      ...result.value,
-      _id: result.value._id.toString()
+      ...document,
+      _id: (document._id as Types.ObjectId).toString()
     });
   } catch (error) {
     console.error("Error deleting document:", error);

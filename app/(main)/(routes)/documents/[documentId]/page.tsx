@@ -22,19 +22,29 @@ const DocumentIdPage = ({ params }: DocumentIdPageProps) => {
   const [document, setDocument] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDocument = async () => {
-      try {
-        const doc = await getDocument(params.documentId);
-        setDocument(doc);
-      } catch (error) {
-        console.error("Error fetching document:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchDocument = async () => {
+    try {
+      const doc = await getDocument(params.documentId);
+      setDocument(doc);
+    } catch (error) {
+      console.error("Error fetching document:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Initial fetch
+  useEffect(() => {
     fetchDocument();
+  }, [params.documentId]);
+
+  // Refresh document data periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDocument();
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
   }, [params.documentId]);
 
   const onChange = async (content: string) => {

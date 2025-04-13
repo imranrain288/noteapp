@@ -100,8 +100,12 @@ export const updateDocument = async (documentId: string, updates: Partial<Docume
   }
 };
 
-export const archiveDocument = async (documentId: string) => {
+export const archiveDocument = async (documentId: string): Promise<Document> => {
   try {
+    if (!documentId.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new Error('Invalid document ID format');
+    }
+
     const response = await fetch(`/api/documents/${documentId}/archive`, {
       method: 'PATCH',
       headers: {
@@ -109,30 +113,80 @@ export const archiveDocument = async (documentId: string) => {
       },
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error('Failed to archive document');
+      // If document is not found, assume it's already been moved to trash
+      if (response.status === 404) {
+        return { 
+          title: 'Archived',
+          userId: '',
+          isArchived: true 
+        };
+      }
+      throw new Error(data.error || 'Failed to move note to trash');
     }
 
-    return await response.json();
+    return data as Document;
   } catch (error) {
     console.error("Error archiving document:", error);
     throw error;
   }
 };
 
-export const restoreDocument = async (documentId: string) => {
+export const restoreDocument = async (documentId: string): Promise<Document> => {
   try {
+    if (!documentId.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new Error('Invalid document ID format');
+    }
+
     const response = await fetch(`/api/documents/${documentId}/archive`, {
       method: 'DELETE',
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error('Failed to restore document');
+      // If document is not found, assume it's already been restored
+      if (response.status === 404) {
+        return { 
+          title: 'Restored',
+          userId: '',
+          isArchived: false 
+        };
+      }
+      throw new Error(data.error || 'Failed to restore document');
     }
 
-    return await response.json();
+    return data as Document;
   } catch (error) {
     console.error("Error restoring document:", error);
+    throw error;
+  }
+};
+
+export const publishDocument = async (documentId: string): Promise<Document> => {
+  try {
+    if (!documentId.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new Error('Invalid document ID format');
+    }
+
+    const response = await fetch(`/api/documents/${documentId}/publish`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to publish document');
+    }
+
+    return data as Document;
+  } catch (error) {
+    console.error("Error publishing document:", error);
     throw error;
   }
 };
@@ -144,6 +198,10 @@ export const deleteDocument = async (documentId: string) => {
     });
 
     if (!response.ok) {
+      // If document is not found, assume it's already been deleted
+      if (response.status === 404) {
+        return { success: true };
+      }
       throw new Error('Failed to delete document');
     }
 

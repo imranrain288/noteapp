@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { File } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { getDocuments } from "@/lib/documents";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
 
 import {
   CommandDialog,
@@ -17,12 +16,19 @@ import {
 } from "@/components/ui/command";
 import { useSearch } from "@/hooks/useSearch";
 
+interface Document {
+  id: string;
+  title: string;
+  icon?: string;
+  is_archived: boolean;
+}
+
 export const SearchCommand = () => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user } = useSupabase();
   const router = useRouter();
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [search, setSearch] = useState("");
 
   const toggle = useSearch((store) => store.toggle);
   const isOpen = useSearch((store) => store.isOpen);
@@ -33,8 +39,8 @@ export const SearchCommand = () => {
       if (!user) return;
       
       try {
-        const docs = await getDocuments({ userId: user.uid });
-        setDocuments(docs);
+        const docs = await notesService.getDocuments(user.id);
+        setDocuments(docs.filter((doc: Document) => !doc.is_archived));
       } catch (error) {
         console.error("Error fetching documents:", error);
       }
@@ -68,18 +74,25 @@ export const SearchCommand = () => {
     return null;
   }
 
+  const filteredDocuments = documents.filter(doc => 
+    doc.title.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <CommandDialog open={isOpen} onOpenChange={onClose}>
-      <CommandInput placeholder={`Search ${user?.displayName}'s Noteapp..`} />
+      <CommandInput 
+        placeholder={`Search ${user?.user_metadata?.full_name || user?.email}'s Noteapp..`}
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Documents">
-          {documents?.map((document) => (
+          {filteredDocuments.map((document) => (
             <CommandItem
-              key={document._id}
-              value={document._id}
-              title={document.title}
-              onSelect={onSelect}
+              key={document.id}
+              onSelect={() => onSelect(document.id)}
+              value={document.title}
             >
               {document.icon ? (
                 <p className="mr-2 text-[1.125rem]">{document.icon}</p>

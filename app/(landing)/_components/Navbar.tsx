@@ -1,72 +1,37 @@
 "use client";
 
-import { useScrollTop } from "@/hooks/useScrollTop";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useSupabase } from "@/components/providers/supabase-provider";
+
 import { Logo } from "./Logo";
-import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/spinner";
-import Link from "next/link";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { signInWithPopup } from "firebase/auth";
 
 export const Navbar = () => {
-  const { auth, provider } = useFirebase();
-  const [user, loading] = useAuthState(auth);
-  const scrolled = useScrollTop();
+  const { signInWithGoogle } = useSupabase();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = async () => {
+  const onSignIn = async () => {
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in:", error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
+      setIsLoading(true);
+      await signInWithGoogle();
+    } catch (error: any) {
+      console.error("Failed to sign in:", error.message);
+      // You might want to show this error to the user with a toast notification
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <nav
-      className={cn(
-        "sticky inset-x-0 top-0 z-50 mx-auto flex w-full items-center bg-background p-6 dark:bg-[#1F1F1F]",
-        scrolled && "border-b shadow-sm"
-      )}
-    >
-      <Logo />
-      <div className="flex w-full items-center justify-end md:ml-auto">
-        <div className="flex items-center gap-x-2">
-          {loading && <Spinner />}
-          {!loading && !user && (
-            <>
-              <Button variant="ghost" size="sm" onClick={handleSignIn}>
-                Log In
-              </Button>
-              <Button size="sm" onClick={handleSignIn}>
-                Get Noteapp Free
-              </Button>
-            </>
-          )}
-
-          {user && !loading && (
-            <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/documents">Enter Note App</Link>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </>
-          )}
-          <ModeToggle />
+    <div className="fixed top-0 w-full h-14 px-4 border-b shadow-sm bg-white flex items-center">
+      <div className="md:max-w-screen-2xl mx-auto flex items-center w-full justify-between">
+        <Logo />
+        <div className="space-x-4 md:block md:w-auto flex items-center justify-between w-full">
+          <Button size="sm" onClick={onSignIn} disabled={isLoading}>
+            {isLoading ? "Loading..." : "Get Noteapp free"}
+          </Button>
         </div>
       </div>
-    </nav>
+    </div>
   );
 };

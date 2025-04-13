@@ -1,38 +1,45 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
+import {
+  MoreHorizontal,
+  Trash
+} from "lucide-react";
+
 import {
   DropdownMenu,
+  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { archiveDocument } from "@/lib/documents";
 
 interface MenuProps {
   documentId: string;
 }
 
-export const Menu = ({ documentId }: MenuProps) => {
+export const Menu = ({
+  documentId
+}: MenuProps) => {
   const router = useRouter();
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user } = useSupabase();
 
   const onArchive = async () => {
+    if (!user) return;
+
     try {
-      await archiveDocument(documentId);
+      await notesService.updateDocument(documentId, {
+        is_archived: true
+      });
+      
+      router.refresh();
       router.push("/documents");
-      toast.success("Note moved to trash!");
     } catch (error) {
-      console.error("Error archiving document:", error);
-      toast.error("Failed to archive note.");
+      console.error("Failed to archive document:", error);
     }
   };
 
@@ -43,19 +50,19 @@ export const Menu = ({ documentId }: MenuProps) => {
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-60"
-        align="end"
-        alignOffset={8}
+      <DropdownMenuContent 
+        className="w-60" 
+        align="end" 
+        alignOffset={8} 
         forceMount
       >
         <DropdownMenuItem onClick={onArchive}>
-          <Trash className="mr-2 h-4 w-4" />
+          <Trash className="h-4 w-4 mr-2" />
           Delete
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <div className="p-2 text-xs text-muted-foreground">
-          Last edited by {user?.displayName}
+        <div className="text-xs text-muted-foreground p-2">
+          Last edited by: {user?.user_metadata?.full_name || user?.email}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

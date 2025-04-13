@@ -35,11 +35,14 @@ export const Title = ({ initialData }: TitleProps) => {
   };
 
   const onChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    setTitle(event.target.value);
+    const newTitle = event.target.value || "Untitled";
+    setTitle(newTitle);
     try {
       await updateDocument(initialData._id, { 
-        title: event.target.value || "Untitled" 
+        title: newTitle
       });
+      // Force a router refresh to update all components
+      window.location.reload();
     } catch (error) {
       console.error("Error updating document title:", error);
     }

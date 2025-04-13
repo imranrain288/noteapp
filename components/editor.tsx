@@ -1,13 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
 import { BlockNoteEditor, PartialBlock } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
+import { BlockNoteView, useBlockNote } from "@blocknote/react";
 import { useTheme } from "next-themes";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { useFirebase } from "@/components/providers/firebase-provider";
 import "@blocknote/core/style.css";
 import "@blocknote/mantine/style.css";
+
+import { Cover } from "@/components/cover";
+import { Toolbar } from "@/components/toolbar";
 
 interface EditorProps {
   onChange: (value: string) => void;
@@ -16,40 +20,45 @@ interface EditorProps {
 }
 
 const Editor = ({ onChange, initialContent, editable }: EditorProps) => {
+  const { user } = useSupabase();
+  const params = useParams();
   const { resolvedTheme } = useTheme();
-  const { app } = useFirebase();
-  const storage = getStorage(app);
 
-  const handleUpload = async (file: File) => {
+  const [blocks, setBlocks] = useState<PartialBlock[]>([]);
+
+  const editor: BlockNoteEditor = useBlockNote({
+    editable,
+    initialContent: initialContent ? JSON.parse(initialContent) : undefined,
+    onEditorContentChange: (editor) => {
+      onChange(JSON.stringify(editor.topLevelBlocks, null, 2));
+    },
+  });
+
+  useEffect(() => {
+    if (initialContent) {
+      setBlocks(JSON.parse(initialContent));
+    }
+  }, [initialContent]);
+
+  const save = async (content: string) => {
+    if (!user) return;
+
     try {
-      const storageRef = ref(storage, `uploads/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      await notesService.updateDocument(params.documentId as string, {
+        content
+      });
     } catch (error) {
-      console.error("Error uploading file:", error);
-      throw error;
+      console.error("Failed to save document:", error);
     }
   };
 
-  const editor: BlockNoteEditor = useCreateBlockNote({
-    initialContent: initialContent
-      ? (JSON.parse(initialContent) as PartialBlock[])
-      : undefined,
-    uploadFile: handleUpload,
-  });
-
-  const handleEditorChange = () => {
-    onChange(JSON.stringify(editor.document, null, 2));
-  };
-
   return (
-    <div>
+    <div className="flex-1 flex flex-col gap-y-4 p-4">
+      <Cover />
+      <Toolbar initialData={blocks} />
       <BlockNoteView
-        editable={editable}
         editor={editor}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
-        onChange={handleEditorChange}
       />
     </div>
   );

@@ -4,17 +4,14 @@ import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { signInWithPopup } from "firebase/auth";
+import { useSupabase } from "@/components/providers/supabase-provider";
 
 export const Heading = () => {
-  const { auth, provider } = useFirebase();
-  const [user, loading] = useAuthState(auth);
+  const { user, loading, signInWithGoogle } = useSupabase();
 
   const handleSignIn = async () => {
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
     } catch (error) {
       console.error("Error signing in:", error);
     }
@@ -24,7 +21,6 @@ export const Heading = () => {
     <div className="max-w-3xl space-y-4">
       <h1 className="text-3xl font-bold sm:text-5xl md:text-5xl">
         Your Ideas, Documents & Plans. Welcome to Note App
-        
       </h1>
       <h2 className="text-base font-medium sm:text-xl">
         Note app is the connected workspace where <br /> better, faster work

@@ -3,11 +3,10 @@
 import React, { ElementRef, useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "usehooks-ts";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useSupabase } from "@/components/providers/supabase-provider";
 
 import { cn } from "@/lib/utils";
-import { createDocument } from "@/lib/documents";
+import { notesService } from "@/lib/notes";
 import { DocumentList } from "./DocumentList";
 import { Item } from "./Item";
 import { UserItem } from "./UserItem";
@@ -33,8 +32,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { Navbar } from "./Navbar";
 
 const Navigation = () => {
-  const { auth } = useFirebase();
-  const [user] = useAuthState(auth);
+  const { user } = useSupabase();
   const search = useSearch();
   const settings = useSettings();
   const router = useRouter();
@@ -128,11 +126,12 @@ const Navigation = () => {
     if (!user) return;
     
     try {
-      const response = await createDocument({
-        title: "Untitled",
-        userId: user.uid
-      });
-      router.push(`/documents/${response._id}`);
+      const document = await notesService.createDocument(
+        "Untitled",
+        "",
+        user.id
+      );
+      router.push(`/documents/${document.id}`);
       
       toast.success("New note created");
     } catch (error) {

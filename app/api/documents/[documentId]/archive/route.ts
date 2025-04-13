@@ -1,43 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
-import clientPromise from "@/lib/mongodb";
+import { isValidObjectId, Types } from "mongoose";
+import { connectDB } from "@/lib/mongodb";
+import DocumentModel, { IDocument } from "@/models/document.model";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { documentId: string } }
 ) {
   try {
-    if (!params.documentId || !ObjectId.isValid(params.documentId)) {
+    if (!params.documentId || !isValidObjectId(params.documentId)) {
       return NextResponse.json(
         { error: "Invalid document ID" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const result = await collection.findOneAndUpdate(
-      { _id: new ObjectId(params.documentId) },
+    const document = await DocumentModel.findByIdAndUpdate<IDocument>(
+      params.documentId,
       { 
         $set: {
-          updatedAt: new Date(), 
           isArchived: true,
           archivedAt: new Date()
         } 
       },
-      { returnDocument: "after" }
-    );
+      { new: true }
+    ).lean<IDocument>();
 
-    if (!result || !result.value) {
+    if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(result.value);
+    return NextResponse.json({
+      ...document,
+      _id: (document._id as Types.ObjectId).toString()
+    });
   } catch (error) {
     console.error("Error archiving document:", error);
     return NextResponse.json(
@@ -52,37 +53,37 @@ export async function DELETE(
   { params }: { params: { documentId: string } }
 ) {
   try {
-    if (!params.documentId || !ObjectId.isValid(params.documentId)) {
+    if (!params.documentId || !isValidObjectId(params.documentId)) {
       return NextResponse.json(
         { error: "Invalid document ID" },
         { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("noteapp");
-    const collection = db.collection("documents");
+    await connectDB();
 
-    const result = await collection.findOneAndUpdate(
-      { _id: new ObjectId(params.documentId) },
+    const document = await DocumentModel.findByIdAndUpdate<IDocument>(
+      params.documentId,
       { 
         $set: {
-          updatedAt: new Date(), 
           isArchived: false,
           archivedAt: null
         } 
       },
-      { returnDocument: "after" }
-    );
+      { new: true }
+    ).lean<IDocument>();
 
-    if (!result || !result.value) {
+    if (!document) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(result.value);
+    return NextResponse.json({
+      ...document,
+      _id: (document._id as Types.ObjectId).toString()
+    });
   } catch (error) {
     console.error("Error restoring document:", error);
     return NextResponse.json(

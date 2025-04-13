@@ -6,10 +6,9 @@ import { Button } from "./ui/button";
 import { ImageIcon, X } from "lucide-react";
 import { useCoverImage } from "@/hooks/useCoverImage";
 import { useParams } from "next/navigation";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { getStorage, ref, deleteObject } from "firebase/storage";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
 import { Skeleton } from "./ui/skeleton";
-import { updateDocument } from "@/lib/documents";
 
 interface CoverImageProps {
   url?: string;
@@ -17,25 +16,19 @@ interface CoverImageProps {
 }
 
 export const Cover = ({ url, preview }: CoverImageProps) => {
-  const { app } = useFirebase();
-  const storage = getStorage(app);
+  const { user } = useSupabase();
   const params = useParams();
   const coverImage = useCoverImage();
 
   const onRemove = async () => {
-    if (url) {
-      try {
-        // Delete file from Firebase Storage
-        const storageRef = ref(storage, url);
-        await deleteObject(storageRef);
+    if (!user) return;
 
-        // Update document in MongoDB to remove cover image
-        await updateDocument(params.documentId as string, {
-          coverImage: null
-        });
-      } catch (error) {
-        console.error("Error removing cover image:", error);
-      }
+    try {
+      await notesService.updateDocument(params.documentId as string, {
+        coverImage: null
+      });
+    } catch (error) {
+      console.error("Failed to remove cover image:", error);
     }
   };
 

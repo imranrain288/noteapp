@@ -1,28 +1,23 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useCoverImage } from "@/hooks/useCoverImage";
-import { SingleImageDropzone } from "@/components/single-image-dropzone";
 import { useState } from "react";
-import { useFirebase } from "@/components/providers/firebase-provider";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useParams } from "next/navigation";
-import { updateDocument } from "@/lib/documents";
+import { useSupabase } from "@/components/providers/supabase-provider";
+import { notesService } from "@/lib/notes";
+
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { SingleImageDropzone } from "@/components/single-image-dropzone";
+import { useEdgeStore } from "@/lib/edgestore";
+import { useCoverImage } from "@/hooks/use-cover-image";
 
 export const CoverImageModal = () => {
   const params = useParams();
-  const { app } = useFirebase();
-  const storage = getStorage(app);
+  const { user } = useSupabase();
+  const coverImage = useCoverImage();
+  const { edgestore } = useEdgeStore();
 
   const [file, setFile] = useState<File>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const coverImage = useCoverImage();
 
   const onClose = () => {
     setFile(undefined);
@@ -31,26 +26,28 @@ export const CoverImageModal = () => {
   };
 
   const onChange = async (file?: File) => {
-    if (file) {
-      setIsSubmitting(true);
-      setFile(file);
+    if (!user || !file) return;
 
-      try {
-        // Upload file to Firebase Storage
-        const storageRef = ref(storage, `covers/${params.documentId}`);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
+    setIsSubmitting(true);
+    setFile(file);
 
-        // Update document in MongoDB
-        await updateDocument(params.documentId as string, {
-          coverImage: downloadURL
-        });
+    try {
+      const res = await edgestore.publicFiles.upload({
+        file,
+        options: {
+          replaceTargetUrl: coverImage.url
+        }
+      });
 
-        onClose();
-      } catch (error) {
-        console.error("Error uploading cover image:", error);
-        setIsSubmitting(false);
-      }
+      await notesService.updateDocument(params.documentId as string, {
+        coverImage: res.url
+      });
+
+      onClose();
+    } catch (error) {
+      console.error("Error uploading cover image:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -58,9 +55,9 @@ export const CoverImageModal = () => {
     <Dialog open={coverImage.isOpen} onOpenChange={coverImage.onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-center text-lg font-semibold">
+          <h2 className="text-center text-lg font-semibold">
             Cover Image
-          </DialogTitle>
+          </h2>
         </DialogHeader>
         <SingleImageDropzone
           className="w-full outline-none"
